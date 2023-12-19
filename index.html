@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>踩了吗</title>
+    <script src="https://cdn.jsdelivr.net/npm/fabric"></script>
+    <script src="./js/bg.js"></script>
+    <script src="./js/ditian.js"></script>
+    <style>
+        body { text-align: center; display: flex; flex-direction: column;}
+        canvas { border: 1px solid #000; text-align: center;}
+        #gameOverScreen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; text-align: center; }
+        #cursorOverlay {
+            cursor: url('./images/Marker.png'), auto;
+        }
+
+        #gameOverScreen {
+            display: none;
+            justify-content: center; /* 水平居中 */
+            align-items: center; /* 垂直居中 */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            
+        }
+
+
+        #gameOverImage {
+        width: 400px;
+        border: 2px solid black;
+        animation: rotateImage 2s linear infinite;
+    }
+
+        @keyframes rotateImage {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+}
+
+    
+    </style>
+    <link href="./css/button.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+<button id="startGameButton">开始游戏</button>
+<p>战意: <span id="score">0</span></p>
+<div id="canvasContainer" style="position: relative; display: flex;">
+    <canvas id="gameCanvas" width="900" height="600"></canvas>
+    <div id="cursorOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+    <img id="sideImage" src="./images/lqjiayou.png">
+</div>
+<div>制作者： 合成大抛瓦@萌芽池</div>
+
+<div id="gameOverScreen">
+    <img id="gameOverImage" src="images/zhantie.png" />
+    <br />
+    <button id="restartGameButton">再来一把和武士爆了！！！！！！！！</button>
+</div>
+
+<script>
+
+
+    
+    var canvas = new fabric.Canvas('gameCanvas');
+    canvas.defaultCursor = 'url(./images/Marker.png), auto';
+    canvas.hoverCursor = 'url(./images/Marker.png), auto';
+    var score = 0;
+    var gameEnded = false;
+    var specialMoles = [];
+    var moleImages = ['images/long.png', 'images/jigong.png', 'images/liandao.png', 'images/dk.png', 'images/zhaohuan.png']; // 普通地鼠图片
+    var generateMoleInterval;
+    var generateSpecialMoleInterval;
+    var generateDiTianDiMoleInterval;
+    
+
+
+    fabric.Image.fromURL('./images/chenfeng.jpg', function(img) {
+    // 设置背景图像并渲染画布
+    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+        // 这里可以设置额外的选项，例如背景的缩放或位置
+        originX: 'left',
+        originY: 'top',
+        scaleX: canvas.width / img.width,  // 缩放图像以适应画布宽度
+        scaleY: canvas.height / img.height, // 缩放图像以适应画布高度
+    });
+    });
+
+
+    function updateScore(points) {
+        score += points;
+        document.getElementById('score').textContent = score;
+    }
+
+    function initGame() {
+    score = 0;
+    gameEnded = false;
+    canvas.clear();
+    document.getElementById('gameOverScreen').style.display = 'none';
+    document.getElementById('score').textContent = score;
+
+    fabric.Image.fromURL('./images/chenfeng.jpg', function(img) {
+    // 设置图像大小以适应画布
+    img.scaleToWidth(canvas.width);
+    img.scaleToHeight(canvas.height);
+
+    // 设置透明度
+    img.set('opacity', 0.5); // 透明度设置为 0.5
+
+
+    img.set({
+        selectable: false,
+        evented: false
+    });
+
+    // 将图像添加到画布并置于底层
+    canvas.add(img);
+    canvas.sendToBack(img);
+
+    });
+
+    // 清除可能存在的旧定时器
+    clearInterval(generateMoleInterval);
+    clearInterval(generateSpecialMoleInterval);
+
+    // 设置新的定时器
+    generateMoleInterval = setInterval(generateMole, 2000);
+    generateSpecialMoleInterval = setInterval(generateSpecialMole, 3000); // 每3秒尝试生成一个特殊地鼠
+    // generateDiTianDiMoleInterval = setInterval(generateDiTianDiMole, 5000); // 每5秒生成一只地天地鼠
+    generateDiTianDiMole()
+}
+
+var generateMoleInterval, generateSpecialMoleInterval;
+
+
+
+function createRegularMole() {
+    var randomImage = moleImages[Math.floor(Math.random() * moleImages.length)];
+    fabric.Image.fromURL(randomImage, function(mole) {
+        // 设置地鼠的固定大小
+        mole.scaleToWidth(40);
+        mole.scaleToHeight(40);
+        mole.set({
+            left: Math.random() * canvas.getWidth(),
+            top: Math.random() * canvas.getHeight(),
+            selectable: false
+        });
+
+        mole.hasControls = mole.hasBorders = false;
+
+        mole.on('mousedown', function() {
+            updateScore(2); // 普通地鼠点击加分
+            canvas.remove(mole);
+        });
+
+        canvas.add(mole);
+
+        // 随机移动
+        moveMoleRandomly(mole);
+
+        setTimeout(function() {
+            canvas.remove(mole);
+        }, 20000); // 普通地鼠在10秒后消失
+    });
+
+
+
+}
+
+
+
+function generateSpecialMole() {
+  fabric.Image.fromURL('images/wushi.png', function(img) {
+        var specialMole = img;
+        // 设置特殊地鼠的固定大小
+        specialMole.scaleToWidth(40);
+        specialMole.scaleToHeight(40);
+        specialMole.set({
+            left: Math.random() * canvas.getWidth(),
+            top: Math.random() * canvas.getHeight(),
+            selectable: false
+        });
+
+        specialMole.hasControls = specialMole.hasBorders = false;
+
+        // 特殊地鼠点击事件 - 结束游戏
+        specialMole.on('mousedown', function() {
+            gameEnded = true;
+            canvas.clear();
+            document.getElementById('gameOverScreen').style.display = 'flex';
+            function changeSideImage() {
+                var sideImage = document.getElementById('sideImage');
+                sideImage.src = './images/lqsile.png';
+            }
+            changeSideImage();
+            // (alert("游戏结束！你的分数是: " + score));
+
+            clearInterval(generateMoleInterval);
+            clearInterval(generateSpecialMoleInterval);
+            clearInterval(generateDiTianDiMoleInterval);
+        });
+
+        canvas.add(specialMole);
+
+        // 让特殊地鼠也像普通地鼠一样随机移动
+        moveMoleRandomly(specialMole);
+
+        setTimeout(function() {
+            canvas.remove(specialMole);
+        }, 20000); // 特殊地鼠在10秒后消失
+    });
+}
+
+function moveMoleRandomly(mole) {
+    function animateMole() {
+        // 计算新的位置
+        var newLeft = mole.left + (Math.random() - 0.5) * 70;
+        var newTop = mole.top + (Math.random() - 0.5) * 70;
+
+        // 确保地鼠不会移动到画布外
+        newLeft = Math.min(canvas.getWidth() - mole.width * mole.scaleX, Math.max(0, newLeft));
+        newTop = Math.min(canvas.getHeight() - mole.height * mole.scaleY, Math.max(0, newTop));
+
+        // 应用动画移动地鼠到新位置
+        mole.animate('left', newLeft, {
+            onChange: canvas.renderAll.bind(canvas),
+            duration: 190,
+            easing: fabric.util.ease.easeOutQuad,
+            onComplete: animateMole // 完成后再次调用自身
+        });
+        mole.animate('top', newTop, {
+            onChange: canvas.renderAll.bind(canvas),
+            duration: 190,
+            easing: fabric.util.ease.easeOutQuad
+        });
+    }
+
+    animateMole(); // 初始调用以启动动画
+}
+
+
+
+function generateMole() {
+
+
+
+if (Math.random() < 0.1) { // 10%的几率生成特殊地鼠
+    generateSpecialMole();
+} else {
+  createRegularMole();
+}
+}
+
+
+    document.getElementById('startGameButton').addEventListener('click', initGame);
+    document.getElementById('restartGameButton').addEventListener('click', initGame);
+
+</script>
+
+</body>
+</html>
